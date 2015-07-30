@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<style>
+  body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  position: relative;
+  width: 100%;
+}
+
+#chart1 svg {
+  height: 400px;
+  width: 90%;
+}
+
+
+
+</style>
+<head>
+<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script src="nvd3/nv.d3.js"></script>
+<script src="jquery-1.11.1.min.js"></script>
+<link rel="stylesheet" type="text/css" href="nvd3/nv.d3.css">
+</head>
+
+
+<body>
+<h1 style="margin-left:100px;"> Bird Striking Flight Visualization </h1>
+<p style="margin-left:50px; margin-right:50px;"> This visualization focuses on the overall picture of bird striking distribution in USA as well as the comparison among states and different heights. As you can see in the bar chart, some states with more bird striking cases happened are associated with higher total flight hours. Thus it can not be defined as "high risk" in this cases.</p>
+
+<div id="filter" style="margin-left:50px;">
+  <FORM id="month_time" style="margin-top:50px;">
+    <span style="margin-left:100px;">Show Flight Height at Striking</span>
+    <INPUT type="checkbox" value="height" style="display:inline; margin-left:10px; margin-right:100px;" id="height" name="height" onclick='handleCheck()'>
+
+    Look into each month
+    <SELECT style="display:inline; margin-left:10px; margin-right:100px;" id="month" name="month" onchange="change(this)">
+      <OPTION value="" selected="selected"></OPTION>
+      <OPTION value="1">January</OPTION>
+      <OPTION value="2">Feburary</OPTION>
+      <OPTION value="3">March</OPTION>
+      <OPTION value="4">April</OPTION>
+      <OPTION value="5">May</OPTION>
+      <OPTION value="6">June</OPTION>
+      <OPTION value="7">July</OPTION>
+      <OPTION value="8">August</OPTION>
+      <OPTION value="9">September</OPTION>
+      <OPTION value="10">October</OPTION>
+      <OPTION value="11">November</OPTION>
+      <OPTION value="12">December</OPTION>
+    </SELECT>
+  </FORM>
+
+</div>
+
+<div id="chart1">
+  <h4 style="margin-left:200px;" id="Topic"> Total Accidents(2005~2013) and Total Flight Time</h4>
+  <p id="expalin" style="margin-left:100px;"> This gives you a picture of accidents at different heights, it is apparent to judge that most accidents are happening in low altitude.</p>
+  <svg></svg>
+</div>
+
+<script>
+    var checked = false;
+    var month;
+    var maxcount, maxflt;
+    var Count_state = [
+        {
+          key: "Accident Count",
+          "bar": true,
+          values: []
+        },
+        {
+          key: "Total Flight Time(hours)",
+          values: []
+        }
+    ];
+
+    d3.csv("Count_state.csv")
+    .header("Access-Control-Allow-Origin", "*")
+    .get(function(error, data) {
+      // callback
+      console.log(data)
+
+      // populate the empty object with your data
+      data.forEach(function (d){
+        d.value = +d.value
+        Count_state[0].values.push([d.StateName, d.Count])
+        Count_state[1].values.push([d.StateName, d.Ave])
+      })
+
+      maxcount = d3.max(Count_state[0].values, function(d){
+        return parseInt(d[1]);
+      });
+
+      maxflt = d3.max(Count_state[1].values, function(d){
+        return parseInt(d[1]);
+      });
+
+      nv.addGraph(function() {
+        var chart = nv.models.linePlusBarChart()
+          .margin({top: 50, right: 100, bottom: 100, left: 70})
+          .x(function(d, i) { return i })
+          .y(function(d) { return d[1] })
+          .color(["orange", "black"])
+          ;
+
+        chart.reduceXTicks = false;
+
+        chart.xAxis
+          .showMaxMin(false)
+          .tickFormat(function(d) {
+            return Count_state[0].values[d][0];
+          })
+          .rotateLabels(-90);
+
+        chart.y1Axis
+          .showMaxMin(false)
+          .tickFormat(d3.format(',f'));
+
+        chart.y2Axis
+          .showMaxMin(false)
+          .axisLabel('Hours')
+          .tickFormat(d3.format(',f'));
+        
+        chart.bars.forceY([0, maxcount]);
+        chart.lines.forceY([0,maxflt]);
+
+        d3.select('#chart1 svg')
+          .datum(Count_state)
+          .transition().duration(1000)
+          .call(chart)
+        ;
+        return chart;
+      });
+    });
+
+
+    
+
+  $('#expalin').hide();
+
+  function handleCheck(){
+    checked = document.getElementById("height").checked;
+    redraw();
+  }
+
+  function change(mon){
+    month = mon.value;
+    redraw();
+  }
+
+  function redraw(){
+
+    checked = document.getElementById("height").checked;
+    month = document.getElementById("month").value;
+
+    if(checked){
+      $('#expalin').show();
+      if(month==""){
+        $('h4').html('Accidents on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.zero])
+            Count_state[1].values.push([d.StateName, d.fiveh])
+            Count_state[2].values.push([d.StateName, d.twok])
+            Count_state[3].values.push([d.StateName, d.twokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="1"){
+        $('h4').html('January Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Janzero])
+            Count_state[1].values.push([d.StateName, d.Janfiveh])
+            Count_state[2].values.push([d.StateName, d.Jantwok])
+            Count_state[3].values.push([d.StateName, d.Jantwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="2"){
+        $('h4').html('February Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Febzero])
+            Count_state[1].values.push([d.StateName, d.Febfiveh])
+            Count_state[2].values.push([d.StateName, d.Febtwok])
+            Count_state[3].values.push([d.StateName, d.Febtwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="3"){
+        $('h4').html('March Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Marzero])
+            Count_state[1].values.push([d.StateName, d.Marfiveh])
+            Count_state[2].values.push([d.StateName, d.Martwok])
+            Count_state[3].values.push([d.StateName, d.Martwokplus])
+          })
+
+           d3.select("g")
+             .remove();
+
+            nv.addGraph(function() {
+                var chart = nv.models.multiBarChart()
+                    .margin({top: 50, right: 100, bottom: 100, left: 70})
+                    .x(function (d, i) { return i;})
+                    .y(function (d) { return parseInt(d[1])})
+                    .showControls(true)
+                    .tooltips(true);
+
+                chart.multibar.stacked(true);
+                //chart.forceY([0, maxcount]);
+
+                chart.xAxis
+                  .showMaxMin(false)
+                  .tickFormat(function(d) {
+                    return Count_state[0].values[d][0];
+                  })
+                  .rotateLabels(-90);
+           
+                d3.select('#chart1 svg')
+                    .datum(Count_state)
+                    .transition().duration(200)
+                    .call(chart);
+
+                return chart;
+            });
+        });
+      }else if(month=="4"){
+        $('h4').html('April Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Apizero])
+            Count_state[1].values.push([d.StateName, d.Apifiveh])
+            Count_state[2].values.push([d.StateName, d.Apitwok])
+            Count_state[3].values.push([d.StateName, d.Apitwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="5"){
+        $('h4').html('May Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Mayzero])
+            Count_state[1].values.push([d.StateName, d.Mayfiveh])
+            Count_state[2].values.push([d.StateName, d.Maytwok])
+            Count_state[3].values.push([d.StateName, d.Maytwokplus])
+          })
+
+         d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="6"){
+        $('h4').html('June Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Junzero])
+            Count_state[1].values.push([d.StateName, d.Junfiveh])
+            Count_state[2].values.push([d.StateName, d.Juntwok])
+            Count_state[3].values.push([d.StateName, d.Juntwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="7"){
+        $('h4').html('July Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Julzero])
+            Count_state[1].values.push([d.StateName, d.Julfiveh])
+            Count_state[2].values.push([d.StateName, d.Jultwok])
+            Count_state[3].values.push([d.StateName, d.Jultwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="8"){
+        $('h4').html('August Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Augzero])
+            Count_state[1].values.push([d.StateName, d.Augfiveh])
+            Count_state[2].values.push([d.StateName, d.Augtwok])
+            Count_state[3].values.push([d.StateName, d.Augtwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="9"){
+        $('h4').html('September Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Sepzero])
+            Count_state[1].values.push([d.StateName, d.Sepfiveh])
+            Count_state[2].values.push([d.StateName, d.Septwok])
+            Count_state[3].values.push([d.StateName, d.Septwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="10"){
+        $('h4').html('October Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Octzero])
+            Count_state[1].values.push([d.StateName, d.Octfiveh])
+            Count_state[2].values.push([d.StateName, d.Octtwok])
+            Count_state[3].values.push([d.StateName, d.Octtwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="11"){
+        $('h4').html('November Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Novzero])
+            Count_state[1].values.push([d.StateName, d.Novfiveh])
+            Count_state[2].values.push([d.StateName, d.Novtwok])
+            Count_state[3].values.push([d.StateName, d.Novtwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }else if(month=="12"){
+        $('h4').html('December Accident Times on Each Height');
+        $('h4').css("color", "black");
+        Count_state = [
+            {
+              key: "0 M",
+              values: []
+            },
+            {
+              key: "0~500 M",
+              values: []
+            },
+            {
+              key: "500~2000 M",
+              values: []
+            },
+            {
+              key: "2000~ M",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+          // populate the empty object with your data
+          data.forEach(function (d){
+            d.value = +d.value
+            Count_state[0].values.push([d.StateName, d.Deczero])
+            Count_state[1].values.push([d.StateName, d.Decfiveh])
+            Count_state[2].values.push([d.StateName, d.Dectwok])
+            Count_state[3].values.push([d.StateName, d.Dectwokplus])
+          })
+
+          d3.select("g")
+           .remove();
+
+          nv.addGraph(function() {
+              var chart = nv.models.multiBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return parseInt(d[1])})
+                  .showControls(true)
+                  .tooltips(true);
+
+              chart.multibar.stacked(true);
+              //chart.forceY([0, maxcount]);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .call(chart);
+
+              return chart;
+          });
+        });
+      }
+
+    }else{
+      d3.select("g")
+        .remove();
+      $('#expalin').hide();
+      $('h4').css("color", "orange");
+      if(month==""){
+        $('h4').html('Total Accidents and Total Flight Time');
+        $('h4').css("color", "black");
+          Count_state = [
+              {
+                key: "Accident Times",
+                "bar": true,
+                values: []
+              },
+              {
+                key: "Total Flight Time(hours)",
+                values: []
+              }
+          ];
+
+          d3.csv("Count_state.csv", function(error, data){
+            console.log(data)
+
+            // populate the empty object with your data
+            data.forEach(function (d){
+              d.value = +d.value
+              Count_state[0].values.push([d.StateName, d.Count])
+              Count_state[1].values.push([d.StateName, d.Ave])
+            })
+
+            maxcount = d3.max(Count_state[0].values, function(d){
+              return parseInt(d[1]);
+            });
+
+            maxflt = d3.max(Count_state[1].values, function(d){
+              return parseInt(d[1]);
+            });
+
+            nv.addGraph(function() {
+              var chart = nv.models.linePlusBarChart()
+                .margin({top: 50, right: 100, bottom: 100, left: 70})
+                .x(function(d, i) { return i })
+                .y(function(d) { return d[1] })
+                .color(["orange", "black"])
+                ;
+
+              chart.reduceXTicks = false;
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+
+              chart.y1Axis
+                .showMaxMin(false)
+                .tickFormat(d3.format(',f'));
+
+              chart.y2Axis
+                .showMaxMin(false)
+                .axisLabel('Hours')
+                .tickFormat(d3.format(',f'));
+              
+              chart.bars.forceY([0, maxcount]);
+              chart.lines.forceY([0,maxflt]);
+
+              d3.select('#chart1 svg')
+                .datum(Count_state)
+                .transition().duration(1000)
+                .call(chart)
+              ;
+              return chart;
+            });
+          });
+
+      }else if(month=="1"){
+        $('h4').html('January Striking Possibility (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+            console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Jan])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+             });
+        });
+
+        
+      }else if(month=="2"){
+        $('h4').html('Feburary Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Feb])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+
+        });
+        
+      }else if(month=="3"){
+        $('h4').html('March Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Mar])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+             });
+        });
+
+        nv.addGraph(function() {
+          var chart = nv.models.discreteBarChart()
+              .margin({top: 50, right: 100, bottom: 100, left: 70})
+              .x(function (d, i) { return i;})
+              .y(function (d) { return d[1]})
+              .color(['#7b94b5'])
+              .staggerLabels(false)
+              .tooltips(true);
+
+          chart.forceY([0, 20])
+               .showXAxis(true);
+
+          chart.xAxis
+            .showMaxMin(false)
+            .tickFormat(function(d) {
+              return Count_state[0].values[d][0];
+            })
+            .rotateLabels(-90);
+     
+          d3.select('#chart1 svg')
+              .datum(Count_state)
+              .transition().duration(200)
+              .attr("id", function (d) { console.log(d[0]); })
+              .call(chart);
+
+          return chart;
+        });
+      }else if(month=="4"){
+        $('h4').html('April Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Api])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+
+        });
+
+        
+      }else if(month=="5"){
+        $('h4').html('May Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.May])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5']) 
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+        });
+
+        
+      }else if(month=="6"){
+        $('h4').html('June Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Jun])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+        });
+
+        
+      }else if(month=="7"){
+        $('h4').html('July Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Jul])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+        });
+
+        
+      }else if(month=="8"){
+        $('h4').html('August Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Aug])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+
+        });
+
+        
+      }else if(month=="9"){
+        $('h4').html('September Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Sep])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+
+        });
+
+   
+      }else if(month=="10"){
+        $('h4').html('October Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Oct])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+
+        });
+
+        
+      }else if(month=="11"){
+        $('h4').html('November Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Nov])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+        });
+
+
+
+        
+      }else if(month=="12"){
+        $('h4').html('December Striking Possibility Distribution (Times/Flight Year)');
+        Count_state = [
+            {
+              key: "Month Count",
+              values: []
+            }
+        ];
+
+        d3.csv("Count_state.csv", function(error, data){
+          console.log(data)
+
+              // populate the empty object with your data
+            data.forEach(function (d){
+                d.value = +d.value
+                Count_state[0].values.push([d.StateName, d.Dec])
+            })
+
+            nv.addGraph(function() {
+              var chart = nv.models.discreteBarChart()
+                  .margin({top: 50, right: 100, bottom: 100, left: 70})
+                  .x(function (d, i) { return i;})
+                  .y(function (d) { return d[1]})
+                  .color(['#7b94b5'])
+                  .staggerLabels(false)
+                  .tooltips(true);
+
+              chart.forceY([0, 20])
+                   .showXAxis(true);
+
+              chart.xAxis
+                .showMaxMin(false)
+                .tickFormat(function(d) {
+                  return Count_state[0].values[d][0];
+                })
+                .rotateLabels(-90);
+         
+              d3.select('#chart1 svg')
+                  .datum(Count_state)
+                  .transition().duration(200)
+                  .attr("id", function (d) { console.log(d[0]); })
+                  .call(chart);
+
+              return chart;
+            });
+        });
+      }
+    }
+  }
+  
+  
+  
+
+</script>
+
+
+
+
+</body>
+</html>
